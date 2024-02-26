@@ -1,8 +1,21 @@
-﻿namespace Kosuru.Config
+﻿using System.Security.Cryptography;
+using System.Text;
+
+namespace Kosuru.Config
 {
-    internal class KosuruConfig
+    internal sealed class KosuruConfig
     {
-        public string token { get; set; }
-        public string prefix { get; set; }
+        public string Token { get; set; }
+        public string Prefix { get; set; }
+
+        internal string EncodeToken()
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(Token));
+        }
+
+        internal string DecodeToken()
+        {
+            return Encoding.UTF8.GetString(Convert.FromBase64String(Token));
+        }
     }
 }
