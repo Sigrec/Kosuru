@@ -119,17 +119,18 @@ namespace Kosuru
                 var selectionArray = Task.WhenAll(interactivityTimeout.WaitForSelectAsync(selectScrapeOptionsMessage, "websiteDropdown"), interactivityTimeout.WaitForSelectAsync(selectScrapeOptionsMessage, "bookTypeDropdown"), interactivityTimeout.WaitForSelectAsync(selectScrapeOptionsMessage, "stockStatusFilterDropdown"), interactivityTimeout.WaitForSelectAsync(selectScrapeOptionsMessage, "membershipDropdown"));
 
                 string[] websiteSelection = selectionArray.Result[0].Result.Values;
-                string[] bookTypeSelection = selectionArray.Result[1].Result.Values;
+                BookType bookTypeSelection = selectionArray.Result[1].Result.Values[0].Equals("MANGA") ? BookType.Manga : BookType.LightNovel;
                 string[] stockStatusFilterSelection = selectionArray.Result[2].Result.Values;
                 string[] membershipSelection = selectionArray.Result[3].Result.Values;
 
-                if (websiteSelection.Length != 0 && bookTypeSelection.Length != 0)
+
+                if (websiteSelection.Length != 0)
                 {
                     // Start scrape
                     scrape = new MasterScrape(GetStockStatus(stockStatusFilterSelection), curRegion);
                     await scrape.InitializeScrapeAsync(
                         "jujutsu kaisen",
-                        bookTypeSelection[0].Equals("MANGA") ? BookType.Manga : BookType.LightNovel,
+                        bookTypeSelection,
                         scrape.GenerateWebsiteList(websiteSelection),
                         IsMember(BarnesAndNoble.WEBSITE_TITLE, membershipSelection),
                         IsMember(BarnesAndNoble.WEBSITE_TITLE, membershipSelection),
@@ -138,45 +139,52 @@ namespace Kosuru
                     );
 
                     // Delete initial msg and print results
-                    await ctx.Channel.DeleteMessageAsync(selectScrapeOptionsMessage);
-                    DiscordEmbedBuilder results = new DiscordEmbedBuilder
-                    {
-                        Color = ctx.User.BannerColor,
-                        Timestamp = DateTime.Now
-                    };
-                    results.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", ctx.Member.AvatarUrl);
-                    results.WithFooter("Kosuru", ctx.Member.AvatarUrl);
-                    
                     // Format the result output
                     int longestTitle = "Title".Length;
                     int longestPrice = "Price".Length;
-                    int longestStockStatus = "Stock Status".Length;
+                    int longestStockStatus = "Status".Length;
                     int longestWebsite = "Website".Length;
                     foreach (EntryModel entry in scrape.GetResults())
                     {
-                        if (entry.Entry.Length > longestTitle) { longestTitle = entry.Entry.Length; }
-                        if (entry.Price.Length > longestTitle) { longestPrice = entry.Price.Length; }
-                        if (entry.StockStatus.ToString().Length > longestTitle) { longestStockStatus = entry.StockStatus.ToString().Length; }
-                        if (entry.Website.Length > longestTitle) { longestWebsite = entry.Website.Length; }
+                        longestTitle = Math.Max(longestTitle, entry.Entry.Length);
+                        longestPrice = Math.Max(longestPrice, entry.Price.Length);
+                        longestWebsite = Math.Max(longestWebsite, entry.Website.Length);
                     }
 
-                    StringBuilder desc = new StringBuilder("```");
-                    // foreach (EntryModel entry in scrape.GetResults())
-                    // {
-                    //     desc.AppendLine($"{entry.Entry.PadRight(longestTitle)}\t{entry.Price.PadRight(longestPrice)}\t{entry.StockStatus.ToString().PadRight(longestStockStatus)}\t{entry.Website.PadRight(longestWebsite)}");
-                    // }
-                
-                    desc.Append("```");
-                    Console.WriteLine(desc);
-                    Debug.WriteLine(desc);
-                    results.WithDescription(desc.ToString());
+                    StringBuilder resultField = new StringBuilder();
+                    resultField.AppendLine($"┏{"━".PadRight(longestTitle + 2, '━')}┳{"━".PadRight(longestPrice + 2, '━')}┳{"━".PadRight(longestStockStatus + 2, '━')}┳{"━".PadRight(longestWebsite + 2, '━')}┓");
+                    resultField.AppendLine($"┃ {"Title".PadRight(longestTitle)} ┃ {"Price".PadRight(longestPrice)} ┃ {"Status".PadRight(longestStockStatus)} ┃ {"Website".PadRight(longestWebsite)} ┃");
+                    resultField.AppendLine($"┣{"━".PadRight(longestTitle + 2, '━')}╋{"━".PadRight(longestPrice + 2, '━')}╋{"━".PadRight(longestStockStatus + 2, '━')}╋{"━".PadRight(longestWebsite + 2, '━')}┫");
+                    foreach (EntryModel entry in scrape.GetResults()) { resultField.AppendLine($"┃ {entry.Entry.PadRight(longestTitle)} ┃ {entry.Price.PadRight(longestPrice)} ┃ {entry.StockStatus.ToString().PadRight(longestStockStatus)} ┃ {entry.Website.PadRight(longestWebsite)} ┃"); }
+                    resultField.AppendLine($"┗{"━".PadRight(longestTitle + 2, '━')}┻{"━".PadRight(longestPrice + 2, '━')}┻{"━".PadRight(longestStockStatus + 2, '━')}┻{"━".PadRight(longestWebsite + 2, '━')}┛").Append("");
 
-                    await ctx.Channel.SendMessageAsync($"{ctx.User.Mention}", embed: results);
-                    
-                    // await new DiscordMessageBuilder()
-                    //     .WithContent($"{ctx.User.Mention} **Here are your Results\n{FormatResults(scrape.GetResults(), scrape.GetResultUrls())}!**")
-                    //     .WithAllowedMentions([new UserMention(ctx.User)])
-                    //     .SendAsync(ctx.Channel);
+                    await File.WriteAllTextAsync(Directory.GetCurrentDirectory() + @"\KosuruOutput.txt", resultField.ToString());
+                    // Console.WriteLine(Directory.GetCurrentDirectory() + "\\KosuruOutput.txt");
+
+                    DiscordEmbedBuilder results = new DiscordEmbedBuilder
+                    {
+                        Color = ctx.User.BannerColor,
+                        Timestamp = DateTime.Now,
+                    };
+                    results.AddField("Title", "Jujutsu Kaisen", true);
+                    results.AddField("Region", curRegion.ToString(), true);
+                    string websites = string.Empty;
+                    foreach (var resultUrl in scrape.GetResultUrls())
+                    {
+                        websites += $"[{resultUrl.Key}]({resultUrl.Value})\n";
+                    }
+                    results.AddField("Book Type", bookTypeSelection.ToString(), true);
+                    results.AddField("Memberships", "Barnes & Noble", true);
+                    results.AddField("Websites", websites, true);
+                    results.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", ctx.Member.AvatarUrl);
+                    results.WithFooter("Kosuru", ctx.Member.AvatarUrl);
+                
+                    await new DiscordMessageBuilder()
+                            .WithContent($"{ctx.User.Mention} Here are your Results!")
+                            .AddEmbed(results)
+                            .AddFile("KosuruOutput.txt", new FileStream("KosuruOutput.txt", FileMode.Open, FileAccess.Read))
+                            .WithAllowedMentions([new UserMention(ctx.User)])
+                            .SendAsync(ctx.Channel);
                 }
             }
             catch (Exception ex)
@@ -196,18 +204,11 @@ namespace Kosuru
                 await scrape.InitializeScrapeAsync(
                     "world trigger",
                     BookType.Manga,
-                    new HashSet<Website>([ Website.Crunchyroll ])
+                    new HashSet<Website>([ Website.Crunchyroll, Website.RobertsAnimeCornerStore, Website.InStockTrades ])
                 );
 
                 // Delete initial msg and print results
                 Console.WriteLine(ctx.User.BannerColor);
-                DiscordEmbedBuilder results = new DiscordEmbedBuilder
-                {
-                    Color = ctx.User.BannerColor,
-                    Timestamp = DateTime.Now
-                };
-                results.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", ctx.Member.AvatarUrl);
-                results.WithFooter("Kosuru", ctx.Member.AvatarUrl);
 
                 // Format the result output
                 int longestTitle = "Title".Length;
@@ -222,19 +223,37 @@ namespace Kosuru
                 }
 
                 StringBuilder resultField = new StringBuilder();
-                resultField.AppendLine($"```┏{"━".PadRight(longestTitle + 2, '━')}┳{"━".PadRight(longestPrice + 2, '━')}┳{"━".PadRight(longestStockStatus + 2, '━')}┳{"━".PadRight(longestWebsite + 2, '━')}┓");
+                resultField.AppendLine($"┏{"━".PadRight(longestTitle + 2, '━')}┳{"━".PadRight(longestPrice + 2, '━')}┳{"━".PadRight(longestStockStatus + 2, '━')}┳{"━".PadRight(longestWebsite + 2, '━')}┓");
                 resultField.AppendLine($"┃ {"Title".PadRight(longestTitle)} ┃ {"Price".PadRight(longestPrice)} ┃ {"Status".PadRight(longestStockStatus)} ┃ {"Website".PadRight(longestWebsite)} ┃");
                 resultField.AppendLine($"┣{"━".PadRight(longestTitle + 2, '━')}╋{"━".PadRight(longestPrice + 2, '━')}╋{"━".PadRight(longestStockStatus + 2, '━')}╋{"━".PadRight(longestWebsite + 2, '━')}┫");
                 foreach (EntryModel entry in scrape.GetResults()) { resultField.AppendLine($"┃ {entry.Entry.PadRight(longestTitle)} ┃ {entry.Price.PadRight(longestPrice)} ┃ {entry.StockStatus.ToString().PadRight(longestStockStatus)} ┃ {entry.Website.PadRight(longestWebsite)} ┃"); }
-                resultField.AppendLine($"┗{"━".PadRight(longestTitle + 2, '━')}┻{"━".PadRight(longestPrice + 2, '━')}┻{"━".PadRight(longestStockStatus + 2, '━')}┻{"━".PadRight(longestWebsite + 2, '━')}┛").Append("```");
-                results.WithDescription(resultField.ToString());
+                resultField.AppendLine($"┗{"━".PadRight(longestTitle + 2, '━')}┻{"━".PadRight(longestPrice + 2, '━')}┻{"━".PadRight(longestStockStatus + 2, '━')}┻{"━".PadRight(longestWebsite + 2, '━')}┛").Append("");
 
-                await ctx.Channel.SendMessageAsync($"{ctx.User.Mention}", embed: results);
+                await File.WriteAllTextAsync(Directory.GetCurrentDirectory() + @"\KosuruOutput.txt", resultField.ToString());
+                // Console.WriteLine(Directory.GetCurrentDirectory() + "\\KosuruOutput.txt");
 
-                // await new DiscordMessageBuilder()
-                //     .WithContent($"{ctx.User.Mention} **Here are your Results\n{FormatResults(scrape.GetResults(), scrape.GetResultUrls())}!**")
-                //     .WithAllowedMentions([new UserMention(ctx.User)])
-                //     .SendAsync(ctx.Channel);
+                DiscordEmbedBuilder results = new DiscordEmbedBuilder
+                {
+                    Color = ctx.User.BannerColor,
+                    Timestamp = DateTime.Now,
+                };
+                results.AddField("Title", "World Trigger", true);
+                results.AddField("Region", Region.America.ToString(), true);
+                string websites = string.Empty;
+                foreach (var resultUrl in scrape.GetResultUrls())
+                {
+                    websites += $"[{resultUrl.Key}]({resultUrl.Value})\n";
+                }
+                results.AddField("Websites", websites, true);
+                results.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", ctx.Member.AvatarUrl);
+                results.WithFooter("Kosuru", ctx.Member.AvatarUrl);
+
+                await new DiscordMessageBuilder()
+                    .WithContent($"{ctx.User.Mention} Here are your Results!")
+                    .AddEmbed(results)
+                    .AddFile("KosuruOutput.txt", new FileStream("KosuruOutput.txt", FileMode.Open, FileAccess.Read))
+                    .WithAllowedMentions([new UserMention(ctx.User)])
+                    .SendAsync(ctx.Channel);
             }
             catch (Exception ex)
             {
