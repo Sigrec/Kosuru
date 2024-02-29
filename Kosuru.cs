@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
@@ -51,7 +52,48 @@ namespace Kosuru
 
             Client.ComponentInteractionCreated += async (s, e) =>
             {
-                await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
+                switch (e.Interaction.Data.CustomId)
+                {
+                    case "stockStatusFilterDropdown":
+                        if (!KosuruCommands.IsStockStatusFilterSelected && KosuruCommands.IsWebsiteSelected && KosuruCommands.IsMembershipSelected)
+                        {
+                            KosuruCommands.IsStockStatusFilterSelected = true;
+                            KosuruCommands.StockStatusInteraction = e.Interaction;
+                            await e.Interaction.DeferAsync(true);
+                        }
+                        else 
+                        {
+                            KosuruCommands.IsStockStatusFilterSelected = true;
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate); 
+                        }
+                        break;
+                    case "websiteDropdown":
+                        if (!KosuruCommands.IsWebsiteSelected && KosuruCommands.IsStockStatusFilterSelected && KosuruCommands.IsMembershipSelected)
+                        {
+                            KosuruCommands.WebsiteInteraction = e.Interaction;
+                            KosuruCommands.IsWebsiteSelected = true;
+                            await e.Interaction.DeferAsync(true);
+                        }
+                        else
+                        {
+                            KosuruCommands.IsWebsiteSelected = true;
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate); 
+                        }
+                        break;
+                    case "membershipDropdown":
+                        if (!KosuruCommands.IsMembershipSelected && KosuruCommands.IsStockStatusFilterSelected && KosuruCommands.IsWebsiteSelected)
+                        {
+                            KosuruCommands.MembershipInteraction = e.Interaction;
+                            KosuruCommands.IsMembershipSelected = true;
+                            await e.Interaction.DeferAsync(true);
+                        }
+                        else 
+                        {
+                            KosuruCommands.IsMembershipSelected = true;
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate); 
+                        }
+                        break;
+                }
             };
         }
     }

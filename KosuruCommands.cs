@@ -2,15 +2,12 @@
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
-using DSharpPlus.SlashCommands.Attributes;
 using MangaAndLightNovelWebScrape;
 using MangaAndLightNovelWebScrape.Websites;
 using Microsoft.Extensions.Logging;
 using Src.Models;
-using System.Reflection;
 using System.Text;
 using static MangaAndLightNovelWebScrape.Models.Constants;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Kosuru
 {
@@ -33,17 +30,6 @@ namespace Kosuru
             ], 
             false, 0, 3);
 
-        private static readonly DiscordSelectComponent BookTypeDropdownComponent = new DiscordSelectComponent("bookTypeDropdown", "Select Book Type",
-            [
-                new DiscordSelectComponentOption(
-                    "Manga",
-                    "MANGA"),
-                new DiscordSelectComponentOption(
-                    "Light Novel",
-                    "NOVEL")
-            ],
-            false, 1, 1);
-
         private static readonly DiscordSelectComponent MembershipDropdownComponent = new DiscordSelectComponent("membershipDropdown", "Select Membership(s)",
             [
                 new DiscordSelectComponentOption(
@@ -65,9 +51,15 @@ namespace Kosuru
             false, 0, 4);
 
         private MasterScrape scrape;
+        public static bool IsWebsiteSelected = false;
+        public static bool IsStockStatusFilterSelected = false;
+        public static bool IsMembershipSelected = false;
 
-        // TODO - Reply w/ Waiting Message After Selection
-        // TODO - Issue when scrape takes longer than INTERACTION_TIMEOUT where it stops
+        public static DiscordInteraction WebsiteInteraction;
+        public static DiscordInteraction StockStatusInteraction;
+        public static DiscordInteraction MembershipInteraction;
+
+        // TODO - Figure out how to reset Cooldown and send a message if it's on cooldown
         [SlashCommand("kosuru", "Kosuru")]
         // [SlashCooldown(1, Kosuru.INTERACTION_TIMEOUT, SlashCooldownBucketType.User)]
         public async Task KosuruCommand(InteractionContext ctx,
@@ -89,7 +81,7 @@ namespace Kosuru
             {
                 Region curRegion = Helpers.GetRegionFromString(region);
                 BookType bookType = format == "MANGA" ? BookType.Manga : BookType.LightNovel;
-                
+
                 await ctx.DeferAsync(true);
                 var selectScrapeOptionsResponse = await ctx.EditResponseAsync(
                     new DiscordWebhookBuilder(
@@ -99,18 +91,17 @@ namespace Kosuru
                                 new([GenerateWebsiteDropdownComponent(curRegion)]),
                                 new([StockStatusFilterDropdownComponent]),
                                 new([MembershipDropdownComponent])
-                            })
-                            .AddMention(new UserMention(ctx.User))));
+                            })));
 
                 var interactivity = Kosuru.Client.GetShard(ctx.Guild).GetInteractivity();
-                var selectionArray = Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "membershipDropdown"));
+                var selectionArray = await Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "membershipDropdown"));
 
-                if (!selectionArray.Result.Any(component => component.Result == null))
+                if (!selectionArray.Any(component => component.Result == null))
                 {
                     // Start scrape
-                    string[] websiteSelection = selectionArray.Result[0].Result.Values;
-                    string[] stockStatusFilterSelection = selectionArray.Result[1].Result.Values;
-                    string[] membershipSelection = selectionArray.Result[2].Result.Values;
+                    string[] websiteSelection = selectionArray[0].Result.Values;
+                    string[] stockStatusFilterSelection = selectionArray[1].Result.Values;
+                    string[] membershipSelection = selectionArray[2].Result.Values;
                     Kosuru.Client.Logger.LogDebug($"Getting Information For -> Title = \"{title}\", Region = {region}, Format = {bookType}, Websites = [{string.Join(" , ", websiteSelection)}], Stock Status = [{string.Join(" , ", stockStatusFilterSelection)}], Memberships = [{string.Join(" , ", membershipSelection)}]");
 
                     // Delete the Select Menus
@@ -158,6 +149,12 @@ namespace Kosuru
                         foreach (var resultUrl in scrape.GetResultUrls()) { websites.AppendFormat("[{0}](<{1}>)", resultUrl.Key, resultUrl.Value).AppendLine(); }
 
                         await ctx.DeleteResponseAsync();
+                        Thread.Sleep(500);
+
+                        if (MembershipInteraction != null) { await MembershipInteraction.DeleteOriginalResponseAsync(); }
+                        else if (StockStatusInteraction != null) { await StockStatusInteraction.DeleteOriginalResponseAsync(); }
+                        else if (WebsiteInteraction != null) { await WebsiteInteraction.DeleteOriginalResponseAsync(); }
+
                         await ctx.Channel.SendMessageAsync(new DiscordMessageBuilder()
                                     .WithContent($">>> **{websites}**")
                                     .AddFile("KosuruResults.txt", new MemoryStream(Encoding.UTF8.GetBytes(resultField.ToString()))));
@@ -181,6 +178,12 @@ namespace Kosuru
                         results.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
 
                         await ctx.DeleteResponseAsync();
+                        Thread.Sleep(500);
+
+                        if (MembershipInteraction != null) { await MembershipInteraction.DeleteOriginalResponseAsync(); }
+                        else if (StockStatusInteraction != null) { await StockStatusInteraction.DeleteOriginalResponseAsync(); }
+                        else if (WebsiteInteraction != null) { await WebsiteInteraction.DeleteOriginalResponseAsync(); }
+
                         await ctx.Channel.SendMessageAsync(
                             new DiscordMessageBuilder()
                                 .WithContent(ctx.User.Mention)
@@ -200,6 +203,12 @@ namespace Kosuru
                     noResponseEmbed.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
 
                     await ctx.DeleteResponseAsync();
+                    Thread.Sleep(500);
+
+                    if (MembershipInteraction != null) { await MembershipInteraction.DeleteOriginalResponseAsync(); }
+                    else if (StockStatusInteraction != null) { await StockStatusInteraction.DeleteOriginalResponseAsync(); }
+                    else if (WebsiteInteraction != null) { await WebsiteInteraction.DeleteOriginalResponseAsync(); }
+
                     await ctx.Channel.SendMessageAsync(
                         new DiscordMessageBuilder()
                             .WithContent(string.Empty)
@@ -223,6 +232,12 @@ namespace Kosuru
                     new DiscordMessageBuilder()
                         .WithContent(string.Empty)
                         .AddEmbed(errorEmbed));
+            }
+            finally
+            {
+                IsStockStatusFilterSelected = false;
+                IsMembershipSelected = false;
+                IsWebsiteSelected = false;
             }
         }
 
