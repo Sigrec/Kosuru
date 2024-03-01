@@ -6,6 +6,8 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 using Kosuru.Config;
+using MangaAndLightNovelWebScrape;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Kosuru
@@ -17,6 +19,7 @@ namespace Kosuru
         private const string KOSURU_BOT_JOIN_LINK = "https://discord.com/oauth2/authorize?client_id=1211708758141702224&permissions=277025507328&scope=bot+applications.commands";
         private static KosuruConfig KosuruConfig;
         public const ushort INTERACTION_TIMEOUT = 30;
+        public static readonly DiscordColor COLOR = new DiscordColor("#49576F");
 
         static async Task Main()
         {
@@ -32,11 +35,12 @@ namespace Kosuru
             // Setup Kosuru bot
             Client = new DiscordShardedClient(new DiscordConfiguration()
             {
-                Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
+                Intents = DiscordIntents.DirectMessages | DiscordIntents.MessageContents | DiscordIntents.GuildMessages | DiscordIntents.Guilds,
                 Token = KosuruConfig?.DecodeToken(),
                 TokenType = TokenType.Bot,
                 MinimumLogLevel = LogLevel.Debug,
                 AutoReconnect = true,
+                ShardCount = 1
             });
             await Client.UseSlashCommandsAsync();
 
@@ -52,48 +56,19 @@ namespace Kosuru
 
             Client.ComponentInteractionCreated += async (s, e) =>
             {
-                switch (e.Interaction.Data.CustomId)
-                {
-                    case "stockStatusFilterDropdown":
-                        if (!KosuruCommands.IsStockStatusFilterSelected && KosuruCommands.IsWebsiteSelected && KosuruCommands.IsMembershipSelected)
-                        {
-                            KosuruCommands.IsStockStatusFilterSelected = true;
-                            KosuruCommands.StockStatusInteraction = e.Interaction;
-                            await e.Interaction.DeferAsync(true);
-                        }
-                        else 
-                        {
-                            KosuruCommands.IsStockStatusFilterSelected = true;
-                            await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate); 
-                        }
-                        break;
-                    case "websiteDropdown":
-                        if (!KosuruCommands.IsWebsiteSelected && KosuruCommands.IsStockStatusFilterSelected && KosuruCommands.IsMembershipSelected)
-                        {
-                            KosuruCommands.WebsiteInteraction = e.Interaction;
-                            KosuruCommands.IsWebsiteSelected = true;
-                            await e.Interaction.DeferAsync(true);
-                        }
-                        else
-                        {
-                            KosuruCommands.IsWebsiteSelected = true;
-                            await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate); 
-                        }
-                        break;
-                    case "membershipDropdown":
-                        if (!KosuruCommands.IsMembershipSelected && KosuruCommands.IsStockStatusFilterSelected && KosuruCommands.IsWebsiteSelected)
-                        {
-                            KosuruCommands.MembershipInteraction = e.Interaction;
-                            KosuruCommands.IsMembershipSelected = true;
-                            await e.Interaction.DeferAsync(true);
-                        }
-                        else 
-                        {
-                            KosuruCommands.IsMembershipSelected = true;
-                            await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate); 
-                        }
-                        break;
-                }
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
+                //switch (e.Interaction.Data.CustomId)
+                //{
+                //    case "stockStatusFilterDropdown":
+                //    await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
+                //    break;
+                //case "websiteDropdown":
+                //    await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource, new DiscordInteractionResponseBuilder().AsEphemeral(true));
+                //    break;
+                //case "membershipDropdown":
+                //    await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
+                //    break;
+                //}
             };
         }
     }
