@@ -46,7 +46,7 @@ namespace Kosuru
         static async Task Main()
         {
             // Configure and start the bot
-            KosuruConfig = await JsonSerializer.DeserializeAsync<KosuruConfig>(File.OpenRead(@"Config\config.json"));
+            KosuruConfig = await JsonSerializer.DeserializeAsync<KosuruConfig>(File.OpenRead(@"Config/config.json"));
             await CreateClient();
             await Client.StartAsync();
             CreateEmbeds();
