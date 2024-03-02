@@ -12,6 +12,7 @@ jobs:
         with:
           host: ${{ secrets.DO_SSH_IP }}
           key: ${{ secrets.DO_SSH_KEY }}
+          password: ${{ secrets.DO_SSH_KEY_PASSWORD }}
           username: ${{ secrets.DO_SSH_USERNAME }}
           script: |
             echo "HELLO"
