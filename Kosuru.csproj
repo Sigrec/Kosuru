@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <RuntimeIdentifier>ubuntu.23.10-x64</RuntimeIdentifier>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
@@ -10,22 +10,19 @@
     <TrimMode>partial</TrimMode>
     <Version>1.0.0</Version>
     <FileVersion>1.0.0.0</FileVersion>
-	<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
-
   <ItemGroup>
-	<PackageReference Include="DSharpPlus" Version="5.0.0-nightly-02132" />
+    <PackageReference Include="DSharpPlus" Version="5.0.0-nightly-02132" />
     <PackageReference Include="DSharpPlus.CommandsNext" Version="5.0.0-nightly-02132" />
     <PackageReference Include="DSharpPlus.Interactivity" Version="5.0.0-nightly-02132" />
     <PackageReference Include="DSharpPlus.SlashCommands" Version="5.0.0-nightly-02132" />
     <PackageReference Include="System.Text.Json" Version="8.0.2" />
     <PackageReference Include="MangaAndLightNovelWebScrape" Version="2.1.2" />
   </ItemGroup>
-
   <ItemGroup>
     <None Update="Config\config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
 </Project>

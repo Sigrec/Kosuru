@@ -6,7 +6,6 @@ namespace Kosuru.Config
     internal sealed class KosuruConfig
     {
         public string Token { get; set; }
-        public string Prefix { get; set; }
 
         internal string EncodeToken()
         {
