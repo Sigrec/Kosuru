@@ -9,8 +9,6 @@ echo "Updating Apps"
 sudo apt-get update && sudo apt-get upgrade
 
 # install .NET sdk sudo apt-get install -y dotnet-sdk-<version>
-# Go to correct directory
-cd ~/Kosuru # /root/Kosuru/..
 
 # Get latest changes from master
 echo "Pulling Latest Changes"
@@ -27,7 +25,7 @@ rm -r .github
 
 # Build new latest changes 
 echo "Build Latest Release"
-dotnet build Kosuru.sln --configuration Release
+dotnet build Kosuru.sln -c Release
 
 # Start discord bot
 echo "Running Kosuru Bot"
