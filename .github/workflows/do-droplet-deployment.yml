@@ -14,6 +14,7 @@ jobs:
           password: ${{ secrets.DO_SSH_PASSWORD }}
           username: ${{ secrets.DO_SSH_USERNAME }}
           script: |
+            ls
             cd ~/Kosuru
-            ./deploy.sh
+            .Kosuru/deploy.sh
             
