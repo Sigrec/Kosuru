@@ -1,226 +1,160 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
+using DSharpPlus.EventArgs;
+using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.SlashCommands.Attributes;
+using DSharpPlus.SlashCommands.EventArgs;
 using MangaAndLightNovelWebScrape;
 using MangaAndLightNovelWebScrape.Enums;
 using MangaAndLightNovelWebScrape.Models;
 using MangaAndLightNovelWebScrape.Websites;
 using Microsoft.Extensions.Logging;
-using OpenQA.Selenium.Support.UI;
+using NLog.Filters;
 using System.Diagnostics;
 using System.Text;
 
 namespace Kosuru
 {
-    [SlashCommandGroup("kosuru", "Kosuru Commands")]
+    [SlashCommandGroup(Kosuru.NAME, "Kosuru Commands")]
     public class KosuruCommands : ApplicationCommandModule
     {
-        private static readonly DiscordSelectComponent StockStatusFilterDropdownComponent = new DiscordSelectComponent("stockStatusFilterDropdown", "Select Stock Status Filter(s)",
-        [
-            new DiscordSelectComponentOption(
-                "None",
-                "NONE"),
-            new DiscordSelectComponentOption(
-                "Out of Stock",
-                "OOS"),
-            new DiscordSelectComponentOption(
-                "Pre-Order",
-                "PO"),
-            new DiscordSelectComponentOption(
-                "Backorder",
-                "BO")
-        ],
-        false, 0, 3);
-
-        private static readonly DiscordSelectComponent MembershipDropdownComponent = new DiscordSelectComponent("membershipDropdown", "Select Membership(s)",
-        [
-            new DiscordSelectComponentOption(
-                "None",
-                "NONE"),
-            new DiscordSelectComponentOption(
-                BarnesAndNoble.WEBSITE_TITLE,
-                BarnesAndNoble.WEBSITE_TITLE),
-            new DiscordSelectComponentOption(
-                BooksAMillion.WEBSITE_TITLE,
-                BooksAMillion.WEBSITE_TITLE),
-            new DiscordSelectComponentOption(
-                KinokuniyaUSA.WEBSITE_TITLE,
-                KinokuniyaUSA.WEBSITE_TITLE),
-            new DiscordSelectComponentOption(
-                Indigo.WEBSITE_TITLE,
-                Indigo.WEBSITE_TITLE)
-        ],
-        false, 0, 4);
+        public MasterScrape Scrape { private get; set; }
+        public DiscordInteraction WebsiteDropdownInteraction { get; set; }
 
         // TODO - Figure out how to reset Cooldown and handle cooldowns on user side
-        // TODO ? - Figure out how to see how many guilds have access to my bot then stop and increase shard amount by 1 in Client Config & start again
-        // TODO - Exception Handling
-        // TODO - Create form in github fpr website requests
-        // TODO = Finalize non Kosuru result message layouts
         [SlashCommand("start", "Start Kosuru")]
-        // [SlashCooldown(1, Kosuru.INTERACTION_TIMEOUT, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 60, SlashCooldownBucketType.User)]
         public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm)
         {
             // Get input for the scrape from user
-            try
-            {
-                await ctx.DeferAsync(true);
-                Region curRegion = Helpers.GetRegionFromString(region);
-                BookType bookType = format == "MANGA" ? BookType.Manga : BookType.LightNovel;
+            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
+            await ctx.DeferAsync(true);
+            Region curRegion = Helpers.GetRegionFromString(region);
+            BookType bookType = format == "MANGA" ? BookType.Manga : BookType.LightNovel;
 
-                // Create WebsiteDropdown Component
-                List<DiscordSelectComponentOption> optionsList = new List<DiscordSelectComponentOption>();
-                foreach (string website in Helpers.GetRegionWebsiteListAsString(curRegion))
+            // Create WebsiteDropdown Component
+            List<DiscordSelectComponentOption> optionsList = new List<DiscordSelectComponentOption>();
+            foreach (string website in Helpers.GetRegionWebsiteListAsString(curRegion))
+            {
+                optionsList.Add(new DiscordSelectComponentOption(website, website));
+            }
+
+            var dropdownComponents = new List<DiscordActionRowComponent>
+            {
+                new([new DiscordSelectComponent("websiteDropdown", "Select Website(s)", optionsList, false, 1, optionsList.Count)]),
+                new([Kosuru.StockStatusFilterDropdownComponent])
+            };
+
+            // Create Membership Dropdown
+            optionsList.Clear();
+            string[] websiteMemberships = Helpers.GetMembershipWebsitesForRegionAsString(curRegion);
+            if (websiteMemberships.Length != 0)
+            {
+                optionsList.Add(new DiscordSelectComponentOption("None", "NONE"));
+                foreach (string website in websiteMemberships)
                 {
                     optionsList.Add(new DiscordSelectComponentOption(website, website));
                 }
+                dropdownComponents.Add(new([new DiscordSelectComponent("membershipDropdown", "Select Membership(s)", optionsList, false, 0, optionsList.Count)]));
+            }
 
-                var dropdownComponents = new List<DiscordActionRowComponent>
-                {
-                    new([new DiscordSelectComponent("websiteDropdown", "Select Website(s)", optionsList, false, 1, optionsList.Count)]),
-                    new([StockStatusFilterDropdownComponent])
-                };
+            var selectScrapeOptionsResponse = await ctx.EditResponseAsync(
+                new DiscordWebhookBuilder(
+                    new DiscordMessageBuilder()
+                        .AddComponents(dropdownComponents)));
 
-                // Create Membership Dropdown
-                optionsList.Clear();
-                string[] websiteMemberships = Helpers.GetMembershipWebsitesForRegionAsString(curRegion);
+            var interactivity = Kosuru.Client.GetShard(ctx.Guild).GetInteractivity();
+            var selectionArray = websiteMemberships.Length != 0 ? await Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "membershipDropdown")) : await Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"));
+
+            await ctx.EditResponseAsync(
+                new DiscordWebhookBuilder(
+                    new DiscordInteractionResponseBuilder().WithContent("**Kosuru Running...**").AsEphemeral(true)));
+            interactivity.Dispose();
+
+            if (!selectionArray.Any(component => component.Result == null))
+            {
+                // Start scrape
+                string[] websiteSelection = selectionArray[0].Result.Values;
+                string[] stockStatusFilterSelection = selectionArray[1].Result.Values;
+                string[] membershipSelection = [];
+
+                Scrape = new MasterScrape(GetStockStatus(stockStatusFilterSelection), curRegion);
                 if (websiteMemberships.Length != 0)
                 {
-                    optionsList.Add(new DiscordSelectComponentOption("None", "NONE"));
-                    foreach (string website in websiteMemberships)
-                    {
-                        optionsList.Add(new DiscordSelectComponentOption(website, website));
-                    }
-                    dropdownComponents.Add(new([new DiscordSelectComponent("membershipDropdown", "Select Membership(s)", optionsList, false, 0, optionsList.Count)]));
+                    membershipSelection = selectionArray[2].Result.Values;
+                    Scrape.IsBarnesAndNobleMember = IsMember(BarnesAndNoble.WEBSITE_TITLE, membershipSelection);
+                    Scrape.IsBooksAMillionMember = IsMember(BooksAMillion.WEBSITE_TITLE, membershipSelection);
+                    Scrape.IsKinokuniyaUSAMember = IsMember(KinokuniyaUSA.WEBSITE_TITLE, membershipSelection);
+                    Scrape.IsIndigoMember = IsMember(Indigo.WEBSITE_TITLE, membershipSelection);
                 }
 
-                var selectScrapeOptionsResponse = await ctx.EditResponseAsync(
-                    new DiscordWebhookBuilder(
-                        new DiscordMessageBuilder()
-                            .WithContent("> **Enter Inputs**")
-                            .AddComponents(dropdownComponents)));
+                Kosuru.Client.Logger.LogDebug($"Getting Information For -> Title = \"{title}\", Region = {region}, Format = {bookType}, Websites = [{string.Join(" , ", websiteSelection)}], Stock Status = [{string.Join(" , ", stockStatusFilterSelection)}]{(membershipSelection.Length != 0 ? $", Memberships = [{string.Join(" , ", membershipSelection)}]" : string.Empty)}");
+                await Scrape.InitializeScrapeAsync(title, bookType, Scrape.GenerateWebsiteList(websiteSelection));
 
-                var interactivity = Kosuru.Client.GetShard(ctx.Guild).GetInteractivity();
-                var selectionArray = await Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "membershipDropdown"));
-                var thinkingResponse = await ctx.EditResponseAsync(
-                    new DiscordWebhookBuilder(
-                        new DiscordInteractionResponseBuilder().WithContent("**Kosuru Running...**").AsEphemeral(true)));
-
-                if (!selectionArray.Any(component => component.Result == null))
+                if (Scrape.GetResults().Count > 0)
                 {
-                    // Start scrape
-                    string[] websiteSelection = selectionArray[0].Result.Values;
-                    string[] stockStatusFilterSelection = selectionArray[1].Result.Values;
-                    string[] membershipSelection = selectionArray[2].Result.Values;
+                    string scrapeResults = Scrape.GetResultsAsAsciiTable(title, bookType, false);
+                    Debug.WriteLine(scrapeResults);
 
-                    Kosuru.Client.Logger.LogDebug($"Getting Information For -> Title = \"{title}\", Region = {region}, Format = {bookType}, Websites = [{string.Join(" , ", websiteSelection)}], Stock Status = [{string.Join(" , ", stockStatusFilterSelection)}], Memberships = [{string.Join(" , ", membershipSelection)}]");
+                    StringBuilder websites = new StringBuilder();
+                    foreach (var resultUrl in Scrape.GetResultUrls()) { websites.AppendFormat("[{0}](<{1}>)", resultUrl.Key, resultUrl.Value).AppendLine(); }
 
-                    // Delete the Select Menus
-                    MasterScrape Scrape = new MasterScrape(GetStockStatus(stockStatusFilterSelection), curRegion)
+                    await ctx.DeleteResponseAsync();
+                    var resultMessage = new DiscordMessageBuilder()
+                                .WithContent($">>> **{websites}**")
+                                .AddFile("KosuruResults.txt", new MemoryStream(Encoding.UTF8.GetBytes(scrapeResults)));
+                    if (dm)
                     {
-                        IsBarnesAndNobleMember = IsMember(BarnesAndNoble.WEBSITE_TITLE, membershipSelection),
-                        IsBooksAMillionMember = IsMember(BooksAMillion.WEBSITE_TITLE, membershipSelection),
-                        IsKinokuniyaUSAMember = IsMember(KinokuniyaUSA.WEBSITE_TITLE, membershipSelection),
-                        IsIndigoMember = IsMember(Indigo.WEBSITE_TITLE, membershipSelection)
+                        var dmChannel = await ctx.Member.CreateDmChannelAsync();
+                        await dmChannel.SendMessageAsync(resultMessage);
+                    }
+                    else
+                    {
+                        await ctx.Channel.SendMessageAsync(resultMessage);
                     };
-                    await Scrape.InitializeScrapeAsync(title, bookType, Scrape.GenerateWebsiteList(websiteSelection));
-
-                    if (Scrape.GetResults().Count > 0)
-                    {
-                        string scrapeResults = Scrape.GetResultsAsAsciiTable(title, bookType, false);
-                        Debug.WriteLine(scrapeResults);
-
-                        StringBuilder websites = new StringBuilder();
-                        foreach (var resultUrl in Scrape.GetResultUrls()) { websites.AppendFormat("[{0}](<{1}>)", resultUrl.Key, resultUrl.Value).AppendLine(); }
-
-                        await ctx.DeleteResponseAsync();
-                        Thread.Sleep(500);
-
-                        if (dm)
-                        {
-                            var dmChannel = await ctx.Member.CreateDmChannelAsync();
-                            await dmChannel.SendMessageAsync(
-                                new DiscordMessageBuilder()
-                                    .WithContent($">>> **{websites}**")
-                                    .AddFile("KosuruResults.txt", new MemoryStream(Encoding.UTF8.GetBytes(scrapeResults))));
-                        }
-                        else
-                        {
-                            await ctx.Channel.SendMessageAsync(
-                                new DiscordMessageBuilder()
-                                    .WithContent($">>> **{websites}**")
-                                    .AddFile("KosuruResults.txt", new MemoryStream(Encoding.UTF8.GetBytes(scrapeResults))));
-                        };
-                    }
-                    else // Kosuru found no data from user inputs
-                    {
-                        DiscordEmbedBuilder results = new DiscordEmbedBuilder
-                        {
-                            Title = ":frowning2: Kosuru Found No Data",
-                            Color = Kosuru.COLOR,
-                            Timestamp = DateTimeOffset.UtcNow,
-                            Description = "*Kosuru Found No Data for Below Inputs*"
-                        };
-                        results.WithThumbnail(Kosuru.Client.CurrentUser.AvatarUrl, 25, 25);
-                        results.AddField("Title", title, true);
-                        results.AddField("Region", curRegion.ToString(), true);
-                        results.AddField("Book Type", bookType.ToString(), true);
-                        if (!membershipSelection.Contains("NONE")) { results.AddField("Membership(s)", string.Join("\n", membershipSelection), membershipSelection.Length == 1); }
-                        results.AddField("Website(s)", string.Join("\n", websiteSelection));
-                        results.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
-                        results.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
-
-                        await ctx.EditResponseAsync(
-                            new DiscordWebhookBuilder(
-                                new DiscordMessageBuilder()
-                                    .WithContent(string.Empty)
-                                    .AddEmbed(results)));
-                    }
                 }
-                else // Delete input message if user doesn't respond in time and send a msg back
+                else // Kosuru found no data from user inputs
                 {
-                    Kosuru.Client.Logger.LogTrace($"User Not Responding in Time");
-                    DiscordEmbedBuilder noResponseEmbed = new DiscordEmbedBuilder
+                    DiscordEmbedBuilder results = new DiscordEmbedBuilder
                     {
-                        Title = $":warning: Took to long to Respond! Try Again",
                         Color = Kosuru.COLOR,
-                        Timestamp = DateTimeOffset.UtcNow
+                        Timestamp = DateTimeOffset.UtcNow,
+                        Description = "### :x: Kosuru Found No Data\n*Kosuru Found No Data for Below Inputs*"
                     };
-                    noResponseEmbed.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
+                    results.WithThumbnail(Kosuru.Client.CurrentUser.AvatarUrl, 25, 25);
+                    results.AddField("Title", title, true);
+                    results.AddField("Region", curRegion.ToString(), true);
+                    results.AddField("Book Type", bookType.ToString(), true);
+                    if (!membershipSelection.Contains("NONE")) { results.AddField("Membership(s)", string.Join("\n", membershipSelection), true); }
+                    results.AddField("Website(s)", string.Join("\n", websiteSelection), true);
+                    results.WithAuthor(Kosuru.NAME, @"https://github.com/Sigrec/Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
+                    results.WithFooter(Kosuru.NAME, Kosuru.Client.CurrentUser.AvatarUrl);
 
                     await ctx.EditResponseAsync(
                         new DiscordWebhookBuilder(
                             new DiscordMessageBuilder()
                                 .WithContent(string.Empty)
-                                .AddEmbed(noResponseEmbed)));
+                                .AddEmbed(results)));
                 }
             }
-            catch (Exception ex)
+            else // Delete input message if user doesn't respond in time and send a msg back
             {
-
-                Kosuru.Client.Logger.LogError(ex, "Kosuru Crashed w/ \"{}\"", ex.Message);
-                DiscordEmbedBuilder errorEmbed = new DiscordEmbedBuilder
-                {
-                    Title = $":bangbang: Kosuru Crashed! Try Again",
-                    Color = Kosuru.COLOR,
-                    Timestamp = DateTimeOffset.UtcNow
-                };
-                errorEmbed.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
-
+                Kosuru.Client.Logger.LogTrace($"User Not Responding in Time");
                 await ctx.EditResponseAsync(
                     new DiscordWebhookBuilder(
                         new DiscordMessageBuilder()
                             .WithContent(string.Empty)
-                            .AddEmbed(errorEmbed)));
+                            .AddEmbed(Kosuru.NoResponseEmbed)));
             }
         }
 
         [SlashCommand("list", "List the Current Available Websites for a Region")]
-        [SlashCooldown(1, 5, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, Kosuru.INTERACTION_TIMEOUT / 2, SlashCooldownBucketType.User)]
         public async Task ListKosuruWebsitesCommand(InteractionContext ctx, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region)
         {
+            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
             await ctx.DeferAsync();
             Region curRegion = Helpers.GetRegionFromString(region);
             StringBuilder websites = new StringBuilder();
@@ -256,43 +190,28 @@ namespace Kosuru
                     Wordery.WEBSITE_TITLE => @"https://wordery.com/",
                     _ => throw new NotImplementedException()
                 };
-                websites.AppendLine($"[{website}](<{link}>)");
+                websites.AppendFormat("[{0}](<{1}>)", website, link).AppendLine();
             }
 
             DiscordEmbedBuilder results = new DiscordEmbedBuilder
             {
-                Title = $"{GetRegionEmoji(curRegion)} Kosuru {region} Websites",
                 Color = Kosuru.COLOR,
                 Timestamp = DateTimeOffset.UtcNow,
-                Description = websites.ToString()
+                Description = $"### {GetRegionEmoji(curRegion)} Kosuru {region} Websites\n{websites}"
             };
-            // results.WithThumbnail(Kosuru.Client.CurrentUser.AvatarUrl, 25, 25);
-            results.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
-            results.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
+            results.WithAuthor(Kosuru.NAME, @"https://github.com/Sigrec/Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
+            results.WithFooter(Kosuru.NAME, Kosuru.Client.CurrentUser.AvatarUrl);
 
             await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(results)));
         }
 
         [SlashCommand("help", "Information About Kosuru")]
-        [SlashCooldown(1, 5, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, Kosuru.INTERACTION_TIMEOUT / 4, SlashCooldownBucketType.User)]
         public async Task KosuruHelpCommand(InteractionContext ctx)
         {
+            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
             await ctx.DeferAsync();
-            DiscordEmbedBuilder helpEmbed = new DiscordEmbedBuilder
-            {
-                Title = $":notepad_spiral: Kosuru Info",
-                Color = Kosuru.COLOR,
-                Timestamp = DateTimeOffset.UtcNow,
-                Description = "Scrapes websites from a given region for a manga or light novel series, and returns a list of compared prices for an entry in that series and outputs a list of the volumes with the lowest price. Users can additionally filter out entries based on stock status."
-            };
-            helpEmbed.WithThumbnail(Kosuru.Client.CurrentUser.AvatarUrl);
-            helpEmbed.WithAuthor("Kosuru", @"https://github.com/Sigrec/Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
-            helpEmbed.WithFooter("Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
-            helpEmbed.AddField("Commands", "**/start** Starts Kosuru\n**/list** Lists the Current Available Websites for a Region");
-            helpEmbed.AddField("Stock Status Filters", "**OOS** (Out of Stock)\n**PO** (Pre-Order)\n**BO** (Backorder)");
-            helpEmbed.AddField("Website Requests", "If you want a website to be added submit a [form request](<https://google.com/>), I will respond at a later time whether this website is doable and will be added to the queue");
-
-            await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(helpEmbed)));
+            await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(Kosuru.HelpEmbed)));
         }
 
         public static StockStatus[] GetStockStatus(string[] selectedFilters)
@@ -331,9 +250,27 @@ namespace Kosuru
                 Region.Britain => ":flag_gb:",
                 Region.Canada => ":flag_ca:",
                 Region.Europe => ":flag_eu:",
-                Region.Japan => ":flag_jp:s",
+                Region.Japan => ":flag_jp:",
                 _ => throw new NotImplementedException(),
             };
+        }
+
+        private static async Task OnErrorOccured(SlashCommandsExtension sender, SlashCommandErrorEventArgs e)
+        {
+            Kosuru.Client.Logger.LogError(e.Exception, "Kosuru Slash Command Error -> \"{}\"", e.Exception.Message);
+            if (e.Exception is SlashExecutionChecksFailedException)
+            {
+                await e.Context.CreateResponseAsync(
+                    new DiscordInteractionResponseBuilder()
+                        .AddEmbed(Kosuru.CooldownEmbed.WithDescription($"### :hourglass_flowing_sand: Kosuru Command on Cooldown, Wait {((SlashCooldownAttribute)((e.Exception as SlashExecutionChecksFailedException).FailedChecks[0])).GetRemainingCooldown(e.Context).Seconds}s")));
+            }
+            else
+            {
+                await e.Context.CreateResponseAsync(
+                    new DiscordInteractionResponseBuilder()
+                        .WithContent(string.Empty)
+                        .AddEmbed(Kosuru.CrashEmbed));
+            }
         }
     }
 }
