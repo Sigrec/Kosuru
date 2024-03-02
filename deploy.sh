@@ -28,5 +28,5 @@ echo "Build Latest Release"
 dotnet build Kosuru.sln -c Release
 
 # Start discord bot
-echo "Running Kosuru Bot"
-dotnet run Kosuru.sln
+# echo "Running Kosuru Bot"
+# dotnet run Kosuru.sln
