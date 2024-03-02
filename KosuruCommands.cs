@@ -1,7 +1,5 @@
 ﻿using DSharpPlus;
 using DSharpPlus.Entities;
-using DSharpPlus.EventArgs;
-using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.SlashCommands.Attributes;
@@ -11,7 +9,6 @@ using MangaAndLightNovelWebScrape.Enums;
 using MangaAndLightNovelWebScrape.Models;
 using MangaAndLightNovelWebScrape.Websites;
 using Microsoft.Extensions.Logging;
-using NLog.Filters;
 using System.Diagnostics;
 using System.Text;
 
@@ -23,7 +20,6 @@ namespace Kosuru
         public MasterScrape Scrape { private get; set; }
         public DiscordInteraction WebsiteDropdownInteraction { get; set; }
 
-        // TODO - Figure out how to reset Cooldown and handle cooldowns on user side
         [SlashCommand("start", "Start Kosuru")]
         [SlashCooldown(1, 60, SlashCooldownBucketType.User)]
         public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm)
@@ -151,7 +147,7 @@ namespace Kosuru
         }
 
         [SlashCommand("list", "List the Current Available Websites for a Region")]
-        [SlashCooldown(1, Kosuru.INTERACTION_TIMEOUT / 2, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 30, SlashCooldownBucketType.User)]
         public async Task ListKosuruWebsitesCommand(InteractionContext ctx, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region)
         {
             ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
@@ -206,7 +202,7 @@ namespace Kosuru
         }
 
         [SlashCommand("help", "Information About Kosuru")]
-        [SlashCooldown(1, Kosuru.INTERACTION_TIMEOUT / 4, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 10, SlashCooldownBucketType.User)]
         public async Task KosuruHelpCommand(InteractionContext ctx)
         {
             ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;

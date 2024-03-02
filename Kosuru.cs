@@ -38,7 +38,6 @@ namespace Kosuru
 
         internal const string NAME = "Kosuru";
         internal const string KOSURU_BOT_JOIN_LINK = "https://discord.com/oauth2/authorize?client_id=1211708758141702224&permissions=277025449984&scope=bot+applications.commands";
-        internal const ushort INTERACTION_TIMEOUT = 45;
         internal static readonly DiscordColor COLOR = new DiscordColor("#49576F");
 
         public static DiscordShardedClient Client { get; set; }
@@ -62,7 +61,7 @@ namespace Kosuru
                 Intents = DiscordIntents.DirectMessages | DiscordIntents.MessageContents | DiscordIntents.Guilds,
                 Token = KosuruConfig?.DecodeToken(),
                 TokenType = TokenType.Bot,
-                MinimumLogLevel = LogLevel.Debug,
+                MinimumLogLevel = LogLevel.Information,
                 AutoReconnect = true,
                 ShardCount = 1
             });
@@ -87,7 +86,7 @@ namespace Kosuru
             // Set timeout for user input
             await Client.UseInteractivityAsync(new InteractivityConfiguration
             {
-                Timeout = TimeSpan.FromSeconds(INTERACTION_TIMEOUT)
+                Timeout = TimeSpan.FromSeconds(45)
             });
 
             // Setup commands
