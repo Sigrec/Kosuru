@@ -8,11 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Kosuru
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DO_SSH_HOST }}
           key: ${{ secrets.DO_SSH_KEY }}
-          password: ${{ secrets.DO_SSH_PASSWORD }}
           username: ${{ secrets.DO_SSH_USERNAME }}
           script: |
             echo "HELLO"
