@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # Kill current running version
-killall Kosuru -v
+echo "Killing Kosuru Bot"
+killall -9 Kosuru
 
 # Ensure apps are updated
+echo "Updating Apps"
 sudo apt-get update && sudo apt-get upgrade
 
 # install .NET sdk sudo apt-get install -y dotnet-sdk-<version>
@@ -11,25 +13,22 @@ sudo apt-get update && sudo apt-get upgrade
 cd ~/Kosuru # /root/Kosuru/..
 
 # Get latest changes from master
+echo "Pulling Latest Changes"
 git pull origin master
 
 # Delete unused files
+echo "Deleting Unused Files"
 rm KosuruIcon.jpg
 rm BotDesc.md
 rm README.md
-rm release.ps1
 rm .gitignore
 rm -r .vscode
 rm -r .github
 
-# Get current ubuntu version
-UBUNTU_VERSION=$(lsb_release -rs | head -2)
-
 # Build new latest changes 
-dotnet build Kosuru.sln --configuration Release --runtime ubuntu.$UBUNTU_VERSION-x64
-
-# Delete obj folder after build
-rm -r obj
+echo "Build Latest Release"
+dotnet build Kosuru.sln --configuration Release
 
 # Start discord bot
+echo "Running Kosuru Bot"
 dotnet run Kosuru.sln
