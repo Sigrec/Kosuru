@@ -10,7 +10,7 @@ jobs:
       - name: Deploy Kosuru
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DO_SSH_HOST }}
+          host: ${{ secrets.DO_SSH_IP }}
           key: ${{ secrets.DO_SSH_KEY }}
           username: ${{ secrets.DO_SSH_USERNAME }}
           script: |
