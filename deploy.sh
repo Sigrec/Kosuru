@@ -26,7 +26,3 @@ rm -r .github
 # Build new latest changes 
 echo "Build Latest Release"
 dotnet build Kosuru.sln -c Release
-
-# Start discord bot
-# echo "Running Kosuru Bot"
-# dotnet run Kosuru.sln
