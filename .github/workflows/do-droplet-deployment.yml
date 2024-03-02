@@ -1,4 +1,4 @@
-name: Deploy To Digital Ocean
+name: Deploy Kosuru To Digital Ocean
 on:
   push:
     branches: [master]
@@ -14,5 +14,5 @@ jobs:
           password: ${{ secrets.DO_SSH_PASSWORD }}
           username: ${{ secrets.DO_SSH_USERNAME }}
           script: |
-            echo "HELLO"
+            ./deploy.sh
             
