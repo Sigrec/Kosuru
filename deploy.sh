@@ -26,5 +26,3 @@ rm -r .github
 # Build new latest changes 
 echo "Build Latest Release"
 dotnet build Kosuru.sln -c Release
-
-# Start Kosuru session

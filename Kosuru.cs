@@ -69,27 +69,13 @@ namespace Kosuru
 
             Client.ComponentInteractionCreated += async (s, e) =>
             {
-                switch (e.Interaction.Data.CustomId)
-                {
-                    case "websiteDropdown":
-                        // Kosuru.Client.Logger.LogDebug("Picked Website");
-                        await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
-                        break;
-                    case "membershipDropdown":
-                        // Kosuru.Client.Logger.LogDebug("Picked Membership");
-                        await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
-                        break;
-                    case "stockStatusFilterDropdown":
-                        // Kosuru.Client.Logger.LogDebug("Picked Stock Status");
-                        await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
-                        break;
-                }
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
             };
 
             // Set timeout for user input
             await Client.UseInteractivityAsync(new InteractivityConfiguration
             {
-                Timeout = TimeSpan.FromMinutes(2)
+                Timeout = TimeSpan.FromSeconds(30)
             });
 
             // Setup commands

@@ -20,8 +20,9 @@ namespace Kosuru
         public MasterScrape Scrape { private get; set; }
         public DiscordInteraction WebsiteDropdownInteraction { get; set; }
 
+        // Unable to delete final messages
         [SlashCommand("start", "Start Kosuru")]
-        [SlashCooldown(1, 60, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 120, SlashCooldownBucketType.User)]
         public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm)
         {
             // Get input for the scrape from user
@@ -32,10 +33,7 @@ namespace Kosuru
 
             // Create WebsiteDropdown Component
             List<DiscordSelectComponentOption> optionsList = new List<DiscordSelectComponentOption>();
-            foreach (string website in Helpers.GetRegionWebsiteListAsString(curRegion))
-            {
-                optionsList.Add(new DiscordSelectComponentOption(website, website));
-            }
+            foreach (string website in Helpers.GetRegionWebsiteListAsString(curRegion)) { optionsList.Add(new DiscordSelectComponentOption(website, website)); }
 
             var dropdownComponents = new List<DiscordActionRowComponent>
             {
@@ -49,16 +47,13 @@ namespace Kosuru
             if (websiteMemberships.Length != 0)
             {
                 optionsList.Add(new DiscordSelectComponentOption("None", "NONE"));
-                foreach (string website in websiteMemberships)
-                {
-                    optionsList.Add(new DiscordSelectComponentOption(website, website));
-                }
+                foreach (string website in websiteMemberships) { optionsList.Add(new DiscordSelectComponentOption(website, website)); }
                 dropdownComponents.Add(new([new DiscordSelectComponent("membershipDropdown", "Select Membership(s)", optionsList, false, 0, optionsList.Count)]));
             }
 
             var selectScrapeOptionsResponse = await ctx.EditResponseAsync(
                 new DiscordWebhookBuilder(
-                    new DiscordMessageBuilder()
+                    new DiscordInteractionResponseBuilder()
                         .AddComponents(dropdownComponents)));
 
             var interactivity = Kosuru.Client.GetShard(ctx.Guild).GetInteractivity();
@@ -67,9 +62,8 @@ namespace Kosuru
             await ctx.EditResponseAsync(
                 new DiscordWebhookBuilder(
                     new DiscordInteractionResponseBuilder().WithContent("**Kosuru Running...**").AsEphemeral(true)));
-            interactivity.Dispose();
 
-            if (!selectionArray.Any(component => component.Result == null))
+            if (!selectionArray.Any(component => component.Result == null)) 
             {
                 // Start scrape
                 string[] websiteSelection = selectionArray[0].Result.Values;
@@ -147,7 +141,7 @@ namespace Kosuru
         }
 
         [SlashCommand("list", "List the Current Available Websites for a Region")]
-        [SlashCooldown(1, 30, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 60, SlashCooldownBucketType.User)]
         public async Task ListKosuruWebsitesCommand(InteractionContext ctx, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region)
         {
             ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
@@ -202,7 +196,7 @@ namespace Kosuru
         }
 
         [SlashCommand("help", "Information About Kosuru")]
-        [SlashCooldown(1, 10, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 30, SlashCooldownBucketType.User)]
         public async Task KosuruHelpCommand(InteractionContext ctx)
         {
             ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
@@ -210,7 +204,7 @@ namespace Kosuru
             await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(Kosuru.HelpEmbed)));
         }
 
-        public static StockStatus[] GetStockStatus(string[] selectedFilters)
+        private static StockStatus[] GetStockStatus(string[] selectedFilters)
         {
             if (!selectedFilters.Contains("NONE"))
             {
@@ -232,12 +226,12 @@ namespace Kosuru
             return StockStatusFilter.EXCLUDE_NONE_FILTER;
         }
 
-        public static bool IsMember(string website, string[] memberships)
+        private static bool IsMember(string website, string[] memberships)
         {
             return !memberships.Contains("NONE") && memberships.Contains(website);
         }
 
-        public static string GetRegionEmoji(Region region)
+        private static string GetRegionEmoji(Region region)
         {
             return region switch
             {
@@ -253,21 +247,21 @@ namespace Kosuru
 
         private static async Task OnErrorOccured(SlashCommandsExtension sender, SlashCommandErrorEventArgs e)
         {
-            Kosuru.Client.Logger.LogError(e.Exception, "Kosuru Slash Command Error -> \"{}\"", e.Exception.Message);
+            await e.Context.DeferAsync(true);
             if (e.Exception is SlashExecutionChecksFailedException)
             {
-                await e.Context.CreateResponseAsync(
-                    new DiscordInteractionResponseBuilder()
-                        .AsEphemeral(true)
-                        .AddEmbed(Kosuru.CooldownEmbed.WithDescription($"### :hourglass_flowing_sand: Kosuru Command on Cooldown, Wait {((SlashCooldownAttribute)((e.Exception as SlashExecutionChecksFailedException).FailedChecks[0])).GetRemainingCooldown(e.Context).Seconds}s")));
+                await e.Context.EditResponseAsync(
+                    new DiscordWebhookBuilder(
+                        new DiscordMessageBuilder()
+                        .AddEmbed(Kosuru.CooldownEmbed.WithDescription($"### :hourglass_flowing_sand: Kosuru Command on Cooldown, Wait {((SlashCooldownAttribute)((e.Exception as SlashExecutionChecksFailedException).FailedChecks[0])).GetRemainingCooldown(e.Context).Seconds}s"))));
             }
             else
             {
-                await e.Context.CreateResponseAsync(
-                    new DiscordInteractionResponseBuilder()
-                        .WithContent(string.Empty)
-                        .AsEphemeral(true)
-                        .AddEmbed(Kosuru.CrashEmbed));
+                Kosuru.Client.Logger.LogError(e.Exception, "Kosuru Slash Command Error -> \"{}\"", e.Exception.Message);
+                await e.Context.EditResponseAsync(
+                    new DiscordWebhookBuilder(
+                        new DiscordMessageBuilder()
+                            .AddEmbed(Kosuru.CrashEmbed)));
             }
         }
     }
