@@ -72,15 +72,15 @@ namespace Kosuru
                 switch (e.Interaction.Data.CustomId)
                 {
                     case "websiteDropdown":
-                        Kosuru.Client.Logger.LogDebug("Picked Website");
+                        // Kosuru.Client.Logger.LogDebug("Picked Website");
                         await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
                         break;
                     case "membershipDropdown":
-                        Kosuru.Client.Logger.LogDebug("Picked Membership");
+                        // Kosuru.Client.Logger.LogDebug("Picked Membership");
                         await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
                         break;
                     case "stockStatusFilterDropdown":
-                        Kosuru.Client.Logger.LogDebug("Picked Stock Status");
+                        // Kosuru.Client.Logger.LogDebug("Picked Stock Status");
                         await e.Interaction.CreateResponseAsync(InteractionResponseType.DeferredMessageUpdate);
                         break;
                 }
