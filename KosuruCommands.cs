@@ -22,7 +22,7 @@ namespace Kosuru
 
         // Unable to delete final messages
         [SlashCommand("start", "Start Kosuru")]
-        [SlashCooldown(1, 60, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 120, SlashCooldownBucketType.User)]
         public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm)
         {
             // Get input for the scrape from user
@@ -250,11 +250,13 @@ namespace Kosuru
             await e.Context.DeferAsync(true);
             if (e.Exception is SlashExecutionChecksFailedException)
             {
-                // TODO - Need to edit this if cooldown is greater than 60 seconds
+                TimeSpan rawTime = ((SlashCooldownAttribute)(e.Exception as SlashExecutionChecksFailedException).FailedChecks[0]).GetRemainingCooldown(e.Context);
+                string timeLeft = $"{rawTime.Seconds}s";
+
                 await e.Context.EditResponseAsync(
                     new DiscordWebhookBuilder(
                         new DiscordMessageBuilder()
-                        .AddEmbed(Kosuru.CooldownEmbed.WithDescription($"### :hourglass_flowing_sand: Kosuru Command on Cooldown, Wait {((SlashCooldownAttribute)(e.Exception as SlashExecutionChecksFailedException).FailedChecks[0]).GetRemainingCooldown(e.Context).Seconds}s"))));
+                        .AddEmbed(Kosuru.CooldownEmbed.WithDescription($"### :hourglass_flowing_sand: Kosuru Command on Cooldown, Wait {(rawTime.Minutes != 0 ? timeLeft.Insert(0, $"{rawTime.Minutes}m ") : timeLeft)}"))));
             }
             else
             {
