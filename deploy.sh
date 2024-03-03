@@ -20,6 +20,7 @@ rm KosuruIcon.jpg
 rm BotDesc.md
 rm README.md
 rm .gitignore
+rm Commands.txt
 rm -r .vscode
 rm -r .github
 
