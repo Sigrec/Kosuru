@@ -258,6 +258,7 @@ namespace Kosuru
             {
                 await e.Context.CreateResponseAsync(
                     new DiscordInteractionResponseBuilder()
+                        .AsEphemeral(true)
                         .AddEmbed(Kosuru.CooldownEmbed.WithDescription($"### :hourglass_flowing_sand: Kosuru Command on Cooldown, Wait {((SlashCooldownAttribute)((e.Exception as SlashExecutionChecksFailedException).FailedChecks[0])).GetRemainingCooldown(e.Context).Seconds}s")));
             }
             else
@@ -265,6 +266,7 @@ namespace Kosuru
                 await e.Context.CreateResponseAsync(
                     new DiscordInteractionResponseBuilder()
                         .WithContent(string.Empty)
+                        .AsEphemeral(true)
                         .AddEmbed(Kosuru.CrashEmbed));
             }
         }
