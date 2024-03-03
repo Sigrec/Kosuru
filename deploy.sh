@@ -4,10 +4,6 @@
 echo "Killing Kosuru Bot"
 killall -9 Kosuru
 
-# Ensure apps are updated
-echo "Updating Apps"
-sudo apt-get update && sudo apt-get upgrade
-
 # install .NET sdk sudo apt-get install -y dotnet-sdk-<version>
 
 # Get latest changes from master

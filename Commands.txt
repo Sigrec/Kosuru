@@ -5,3 +5,4 @@ screen -X -S <screen_id> quit # Deletes a screen/session
 screen -list # List running screens
 dotnet run -c Release = Start bot
 ps aux | grep Kosuru = Check if it's running
+sudo apt-get update && sudo apt-get upgrade # Ensure apps are updated
