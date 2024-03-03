@@ -61,7 +61,7 @@ namespace Kosuru
                 Intents = DiscordIntents.DirectMessages | DiscordIntents.MessageContents | DiscordIntents.Guilds,
                 Token = KosuruConfig?.DecodeToken(),
                 TokenType = TokenType.Bot,
-                MinimumLogLevel = LogLevel.Information,
+                MinimumLogLevel = LogLevel.Debug,
                 AutoReconnect = true,
                 ShardCount = 1
             });
@@ -86,7 +86,7 @@ namespace Kosuru
             // Set timeout for user input
             await Client.UseInteractivityAsync(new InteractivityConfiguration
             {
-                Timeout = TimeSpan.FromSeconds(45)
+                Timeout = TimeSpan.FromMinutes(2)
             });
 
             // Setup commands

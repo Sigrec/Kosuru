@@ -1,0 +1,7 @@
+screen -S <name> # Create screen with given <name>
+screen -r Kosuru # To get back to the session that's running Kosuru
+screen -d -m sh -c "dotnet run -c Release" # Start Kosuru in screen
+screen -X -S <screen_id> quit # Deletes a screen/session
+screen -list # List running screens
+dotnet run -c Release = Start bot
+ps aux | grep Kosuru = Check if it's running
