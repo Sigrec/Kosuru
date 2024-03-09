@@ -157,8 +157,8 @@ namespace Kosuru
         [SlashCooldown(1, 60, SlashCooldownBucketType.User)]
         public async Task ListKosuruWebsitesCommand(InteractionContext ctx, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region)
         {
-            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
             await ctx.DeferAsync();
+            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
             Region curRegion = Helpers.GetRegionFromString(region);
             StringBuilder websites = new StringBuilder();
 
@@ -189,6 +189,7 @@ namespace Kosuru
                         _ => throw new NotImplementedException()
                     }}",
                     SpeedyHen.WEBSITE_TITLE => @"https://www.speedyhen.com/",
+                    TravellingMan.WEBSITE_TITLE => @"https://travellingman.com/",
                     Waterstones.WEBSITE_TITLE => @"https://www.waterstones.com/",
                     // Wordery.WEBSITE_TITLE => @"https://wordery.com/",
                     _ => throw new NotImplementedException()
@@ -205,7 +206,10 @@ namespace Kosuru
             results.WithAuthor(Kosuru.NAME, @"https://github.com/Sigrec/Kosuru", Kosuru.Client.CurrentUser.AvatarUrl);
             results.WithFooter(Kosuru.NAME, Kosuru.Client.CurrentUser.AvatarUrl);
 
-            await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(results)));
+            await ctx.EditResponseAsync(
+                new DiscordWebhookBuilder(
+                    new DiscordMessageBuilder()
+                        .AddEmbed(results)));
         }
 
         [SlashCommand("help", "Information About Kosuru")]
@@ -214,7 +218,10 @@ namespace Kosuru
         {
             await ctx.DeferAsync();
             ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
-            await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(Kosuru.HelpEmbed)));
+            await ctx.EditResponseAsync(
+                new DiscordWebhookBuilder(
+                    new DiscordMessageBuilder()
+                        .AddEmbed(Kosuru.HelpEmbed)));
         }
 
         private static StockStatus[] GetStockStatus(string[] selectedFilters)
@@ -260,7 +267,6 @@ namespace Kosuru
 
         private static async Task OnErrorOccured(SlashCommandsExtension sender, SlashCommandErrorEventArgs e)
         {
-            await e.Context.DeferAsync(true);
             if (e.Exception is SlashExecutionChecksFailedException)
             {
                 TimeSpan rawTime = ((SlashCooldownAttribute)(e.Exception as SlashExecutionChecksFailedException).FailedChecks[0]).GetRemainingCooldown(e.Context);
@@ -273,7 +279,7 @@ namespace Kosuru
             }
             else
             {
-                Kosuru.Client.Logger.LogError(e.Exception, "Kosuru Slash Command Error -> \"{}\"", e.Exception.Message);
+                // Kosuru.Client.Logger.LogError(e.Exception, "Kosuru Slash Command Error -> \"{}\"", e.Exception.Message);
                 await e.Context.EditResponseAsync(
                     new DiscordWebhookBuilder(
                         new DiscordMessageBuilder()

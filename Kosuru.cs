@@ -114,7 +114,7 @@ namespace Kosuru
                 Description = "Scrapes websites from a given region for a manga or light novel series, and returns a list of compared prices for an entry in that series and outputs a list of the volumes with the lowest price. Users can additionally filter out entries based on stock status.\n\n**Disclaimer: It is impossible for the Scrape to be 100% Accurate all the Time**"
             }.WithFooter(Kosuru.NAME, Kosuru.Client.CurrentUser.AvatarUrl)
              .WithThumbnail(Kosuru.Client.CurrentUser.AvatarUrl)
-             .AddField("Commands", "`/kosuru start [title] [region] [format] [dm]` - Starts Kosuru\n`/kosuru list [region]` - Lists the available websites for a region\n`/kosuru help` - Gives information about the Kosuru bot")
+             .AddField("Commands", "`/kosuru start [title] [region] [format] [dm] [mobile]` - Starts Kosuru\n`/kosuru list [region]` - Lists the available websites for a region\n`/kosuru help` - Gives information about the Kosuru bot")
              .AddField("Stock Status Filters (Status to Filter Out)", "**OOS** (Out of Stock) | **PO** (Pre-Order) | **BO** (Backorder)")
              .AddField("Website & Region Requests", "If you want a new website or region to be added submit a [request](<https://github.com/Sigrec/MangaAndLightNovelWebScrape/issues/new/choose>), I will respond at a later time whether this request is doable and if so, it will be added to the queue")
              .AddField("Donate/Support", "Help support the maintainence and upkeep of this discord bot, by donating [here](<https://paypal.me/Preminence8?country.x=US&locale.x=en_US>)!");
