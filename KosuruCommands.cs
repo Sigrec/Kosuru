@@ -9,7 +9,6 @@ using MangaAndLightNovelWebScrape.Enums;
 using MangaAndLightNovelWebScrape.Models;
 using MangaAndLightNovelWebScrape.Websites;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
 using System.Text;
 
 namespace Kosuru
@@ -20,10 +19,12 @@ namespace Kosuru
         public MasterScrape Scrape { private get; set; }
         public DiscordInteraction WebsiteDropdownInteraction { get; set; }
 
-        // Unable to delete final messages
+        // TODO - User unable (only mod) to delete final messages, find a better way of outputting messages?
+        // TODO - Add link to changelog/updates to help command or create new command?
+        // TODO - Issue where "Is Running" stays when there is a error
         [SlashCommand("start", "Start Kosuru")]
         [SlashCooldown(1, 120, SlashCooldownBucketType.User)]
-        public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm)
+        public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm, [Option("Mobile", "Print results in a mobile friendly format")] bool mobile = false)
         {
             // Get input for the scrape from user
             ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
@@ -85,8 +86,20 @@ namespace Kosuru
 
                 if (Scrape.GetResults().Count > 0)
                 {
-                    string scrapeResults = Scrape.GetResultsAsAsciiTable(title, bookType, false);
-                    Debug.WriteLine(scrapeResults);
+                    string scrapeResults;
+                    if (!mobile)
+                    {
+                        scrapeResults = Scrape.GetResultsAsAsciiTable(title, bookType, false);
+                    }
+                    else
+                    {
+                        StringBuilder results = new StringBuilder();
+                        results.AppendFormat("Title: \"{0}\"", title).AppendLine();
+                        results.AppendFormat("BookType: {0}", bookType.ToString()).AppendLine();
+                        results.AppendFormat("Region: {0}", region).AppendLine();
+                        Scrape.GetResults().ForEach(entry => results.AppendLine(entry.ToString()));
+                        scrapeResults = results.ToString();
+                    }
 
                     StringBuilder websites = new StringBuilder();
                     foreach (var resultUrl in Scrape.GetResultUrls()) { websites.AppendFormat("[{0}](<{1}>)", resultUrl.Key, resultUrl.Value).AppendLine(); }
@@ -103,7 +116,7 @@ namespace Kosuru
                     else
                     {
                         await ctx.Channel.SendMessageAsync(resultMessage);
-                    };
+                    }
                 }
                 else // Kosuru found no data from user inputs
                 {
@@ -177,7 +190,7 @@ namespace Kosuru
                     }}",
                     SpeedyHen.WEBSITE_TITLE => @"https://www.speedyhen.com/",
                     Waterstones.WEBSITE_TITLE => @"https://www.waterstones.com/",
-                    Wordery.WEBSITE_TITLE => @"https://wordery.com/",
+                    // Wordery.WEBSITE_TITLE => @"https://wordery.com/",
                     _ => throw new NotImplementedException()
                 };
                 websites.AppendFormat("[{0}](<{1}>)", website, link).AppendLine();
@@ -199,8 +212,8 @@ namespace Kosuru
         [SlashCooldown(1, 30, SlashCooldownBucketType.User)]
         public async Task KosuruHelpCommand(InteractionContext ctx)
         {
-            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
             await ctx.DeferAsync();
+            ctx.SlashCommandsExtension.SlashCommandErrored += OnErrorOccured;
             await ctx.EditResponseAsync(new DiscordWebhookBuilder(new DiscordMessageBuilder().AddEmbed(Kosuru.HelpEmbed)));
         }
 
@@ -266,6 +279,7 @@ namespace Kosuru
                         new DiscordMessageBuilder()
                             .AddEmbed(Kosuru.CrashEmbed)));
             }
+            throw e.Exception;
         }
     }
 }
