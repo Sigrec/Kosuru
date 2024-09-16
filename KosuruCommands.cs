@@ -23,7 +23,7 @@ namespace Kosuru
         // TODO - Add link to changelog/updates to help command or create new command?
         // TODO - Issue where "Is Running" stays when there is a error
         [SlashCommand("start", "Start Kosuru")]
-        [SlashCooldown(1, 120, SlashCooldownBucketType.User)]
+        [SlashCooldown(1, 90, SlashCooldownBucketType.User)]
         public async Task KosuruCommand(InteractionContext ctx, [Option("Title", "Enter Title")] string title, [Choice("America", "America")][Choice("Australia", "Australia")][Choice("Britain", "Britain")][Choice("Canada", "Canada")][Choice("Europe", "Europe")][Option("Region", "Select Region")] string region, [Choice("Manga", "MANGA")][Choice("Light Novel", "NOVEL")][Option("Format", "Manga or Light Novel")] string format, [Option("DM", "Direct Message Results?")] bool dm, [Option("Mobile", "Print results in a mobile friendly format")] bool mobile = false)
         {
             // Get input for the scrape from user
@@ -35,7 +35,6 @@ namespace Kosuru
             // Create WebsiteDropdown Component
             List<DiscordSelectComponentOption> optionsList = new List<DiscordSelectComponentOption>();
             foreach (string website in Helpers.GetRegionWebsiteListAsString(curRegion)) { optionsList.Add(new DiscordSelectComponentOption(website, website)); }
-
             var dropdownComponents = new List<DiscordActionRowComponent>
             {
                 new([new DiscordSelectComponent("websiteDropdown", "Select Website(s)", optionsList, false, 1, optionsList.Count)]),
@@ -51,11 +50,10 @@ namespace Kosuru
                 foreach (string website in websiteMemberships) { optionsList.Add(new DiscordSelectComponentOption(website, website)); }
                 dropdownComponents.Add(new([new DiscordSelectComponent("membershipDropdown", "Select Membership(s)", optionsList, false, 0, optionsList.Count)]));
             }
-
             var selectScrapeOptionsResponse = await ctx.EditResponseAsync(
-                new DiscordWebhookBuilder(
-                    new DiscordInteractionResponseBuilder()
-                        .AddComponents(dropdownComponents)));
+            new DiscordWebhookBuilder(
+            new DiscordInteractionResponseBuilder()
+            .AddComponents(dropdownComponents)));
 
             var interactivity = Kosuru.Client.GetShard(ctx.Guild).GetInteractivity();
             var selectionArray = websiteMemberships.Length != 0 ? await Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "membershipDropdown")) : await Task.WhenAll(interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "websiteDropdown"), interactivity.WaitForSelectAsync(selectScrapeOptionsResponse, ctx.User, "stockStatusFilterDropdown"));
@@ -64,7 +62,7 @@ namespace Kosuru
                 new DiscordWebhookBuilder(
                     new DiscordInteractionResponseBuilder().WithContent("**Kosuru Running...**").AsEphemeral(true)));
 
-            if (!selectionArray.Any(component => component.Result == null)) 
+            if (!selectionArray.Any(component => component.Result == null))
             {
                 // Start scrape
                 string[] websiteSelection = selectionArray[0].Result.Values;
@@ -75,13 +73,12 @@ namespace Kosuru
                 if (websiteMemberships.Length != 0)
                 {
                     membershipSelection = selectionArray[2].Result.Values;
-                    Scrape.IsBarnesAndNobleMember = IsMember(BarnesAndNoble.WEBSITE_TITLE, membershipSelection);
                     Scrape.IsBooksAMillionMember = IsMember(BooksAMillion.WEBSITE_TITLE, membershipSelection);
                     Scrape.IsKinokuniyaUSAMember = IsMember(KinokuniyaUSA.WEBSITE_TITLE, membershipSelection);
                     Scrape.IsIndigoMember = IsMember(Indigo.WEBSITE_TITLE, membershipSelection);
                 }
 
-                Kosuru.Client.Logger.LogDebug($"Getting Information For -> Title = \"{title}\", Region = {region}, Format = {bookType}, Websites = [{string.Join(" , ", websiteSelection)}], Stock Status = [{string.Join(" , ", stockStatusFilterSelection)}]{(membershipSelection.Length != 0 ? $", Memberships = [{string.Join(" , ", membershipSelection)}]" : string.Empty)}");
+                Kosuru.Client.Logger.LogInformation($"Getting Information For -> Title = \"{title}\", Region = {region}, Format = {bookType}, Websites = [{string.Join(" , ", websiteSelection)}], Stock Status = [{string.Join(" , ", stockStatusFilterSelection)}]{(membershipSelection.Length != 0 ? $", Memberships = [{string.Join(" , ", membershipSelection)}]" : string.Empty)}");
                 await Scrape.InitializeScrapeAsync(title, bookType, Scrape.GenerateWebsiteList(websiteSelection));
 
                 if (Scrape.GetResults().Count > 0)
@@ -164,37 +161,7 @@ namespace Kosuru
 
             foreach (string website in Helpers.GetRegionWebsiteListAsString(curRegion))
             {
-                string link = website switch
-                {
-                    AmazonJapan.WEBSITE_TITLE => @"https://www.amazon.co.jp/",
-                    AmazonUSA.WEBSITE_TITLE => @"https://www.amazon.com/",
-                    BarnesAndNoble.WEBSITE_TITLE => @"https://www.barnesandnoble.com/",
-                    BooksAMillion.WEBSITE_TITLE => @"https://www.booksamillion.com/",
-                    CDJapan.WEBSITE_TITLE => @"https://www.cdjapan.co.jp/",
-                    Crunchyroll.WEBSITE_TITLE => @"https://store.crunchyroll.com/",
-                    ForbiddenPlanet.WEBSITE_TITLE => @"https://forbiddenplanet.com/",
-                    Indigo.WEBSITE_TITLE => @"https://www.indigo.ca/en-ca/",
-                    InStockTrades.WEBSITE_TITLE => @"https://www.instocktrades.com/",
-                    KinokuniyaUSA.WEBSITE_TITLE => @"https://united-states.kinokuniya.com/",
-                    MangaMate.WEBSITE_TITLE => @"https://mangamate.shop/",
-                    MerryManga.WEBSITE_TITLE => @"https://www.merrymanga.com/",
-                    RobertsAnimeCornerStore.WEBSITE_TITLE => @"https://www.animecornerstore.com/graphicnovels1.html",
-                    SciFier.WEBSITE_TITLE => @$"https://scifier.com/?setCurrencyId={curRegion switch
-                    {
-                        Region.Britain => 1,
-                        Region.America => 2,
-                        Region.Australia => 3,
-                        Region.Europe => 5,
-                        Region.Canada => 6,
-                        _ => throw new NotImplementedException()
-                    }}",
-                    SpeedyHen.WEBSITE_TITLE => @"https://www.speedyhen.com/",
-                    TravellingMan.WEBSITE_TITLE => @"https://travellingman.com/",
-                    Waterstones.WEBSITE_TITLE => @"https://www.waterstones.com/",
-                    // Wordery.WEBSITE_TITLE => @"https://wordery.com/",
-                    _ => throw new NotImplementedException()
-                };
-                websites.AppendFormat("[{0}](<{1}>)", website, link).AppendLine();
+                websites.AppendFormat("[{0}](<{1}>)", website.Equals(Indigo.WEBSITE_TITLE) ? $"{website} (Not Working)" : website, Helpers.GetWebsiteLink(website)).AppendLine();
             }
 
             DiscordEmbedBuilder results = new DiscordEmbedBuilder

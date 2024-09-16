@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using DSharpPlus;
-using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
@@ -47,13 +46,10 @@ namespace Kosuru
         {
             // Configure and start the bot
             KosuruConfig = await JsonSerializer.DeserializeAsync<KosuruConfig>(File.OpenRead(@"Config/config.json"));
-            await CreateClient();
-            await Client.StartAsync();
-            CreateEmbeds();
-            await Task.Delay(-1);
+            await KosuruClient();
         }
 
-        private static async Task CreateClient()
+        private static async Task KosuruClient()
         {
             // Setup Kosuru bot
             Client = new DiscordShardedClient(new DiscordConfiguration()
@@ -61,9 +57,8 @@ namespace Kosuru
                 Intents = DiscordIntents.DirectMessages | DiscordIntents.MessageContents | DiscordIntents.Guilds,
                 Token = KosuruConfig?.DecodeToken(),
                 TokenType = TokenType.Bot,
-                MinimumLogLevel = LogLevel.Debug,
-                AutoReconnect = true,
-                ShardCount = 1
+                MinimumLogLevel = LogLevel.Information,
+                AutoReconnect = true
             });
             await Client.UseSlashCommandsAsync();
 
@@ -84,6 +79,10 @@ namespace Kosuru
                 Services = new ServiceCollection().AddSingleton<MangaAndLightNovelWebScrape.MasterScrape>().BuildServiceProvider()
             });
             Commands.RegisterCommands<KosuruCommands>();
+
+            await Client.StartAsync();
+            CreateEmbeds();
+            await Task.Delay(-1);
         }
 
         private static void CreateEmbeds()
